@@ -1,0 +1,127 @@
+/* Assignment Card Styles */
+.assignment-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.assignment-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  border-color: #d1d5db;
+}
+
+.card-body {
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.icon-section {
+  flex-shrink: 0;
+}
+
+.icon-section i {
+  font-size: 2rem;
+  color: #ef4444;
+}
+
+.content-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.title-row h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.class-badge {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.professor-name {
+  color: #3b82f6;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.description {
+  color: #6b7280;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.stats-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.stats-badge.high {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.stats-badge.medium {
+  background-color: #fef3c7;
+  color: #ca8a04;
+}
+
+.stats-badge.low {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.card-footer {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem;
+  background-color: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  font-size: 0.875rem;
+}
+
+.footer-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+}
+
+.footer-item i {
+  color: #9ca3af;
+  font-size: 1rem;
+}
+
+.footer-item .passed {
+  color: #dc2626;
+  font-weight: 600;
+  margin-left: 0.25rem;
+}

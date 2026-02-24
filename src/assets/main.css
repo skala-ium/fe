@@ -1,0 +1,17 @@
+@import './base.css';
+
+#app {
+  margin: 0;
+  padding: 0;
+  font-weight: normal;
+  min-height: 100vh;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: 0.3s;
+}
+
+/* Bootstrap Icons support */
+@import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
