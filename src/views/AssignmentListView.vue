@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, type Ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import Sidebar from './side/Sidebar.vue';
 import AssignmentCard from '@/components/AssignmentCard.vue';
 import AssignmentDetail from './AssignmentDetail.vue';
 import type { Assignment } from '@/types/Assignment';
+import { classApi, assignmentApi } from '@/api';
+import type { ClassListItem, AssignmentListItem } from '@/types/api';
 
 const props = defineProps<{
   activeMenu: string;
@@ -18,64 +20,88 @@ const emit = defineEmits<{
 // View state
 const showDetail = ref(false);
 const selectedAssignment = ref<Assignment | null>(null);
+const loading = ref(true);
 
-// Filter tabs array
-const filterTabs: string[] = ['전체', '1반', '2반', '3반', '클라우드반'];
+// Class list from API
+const classes = ref<ClassListItem[]>([]);
+const activeClassId = ref<string>('');
+
+// Filter tabs: '전체' + class names
+const filterTabs = computed(() => {
+  return ['전체', ...classes.value.map((c) => c.className)];
+});
 const activeFilter = ref<string>('전체');
 
-// Assignments array
-const assignments: Ref<Assignment[]> = ref([
-  {
-    id: 1,
-    title: '[파이썬 1일차 - Codelab ①] AST를 활용한 자동 보안 검사기',
-    className: '1반',
-    professor: '한상윤',
-    description: 'ast.NodeVisitor를 사용하여 위험 함수(eval, exec 등)를 탐색하고 줄 번호가 포함된 리포트를 생성하는 과제입니다.',
-    completePercent: 92,
-    deadline: '2026년 2월 8일',
-    submitCount: '7/8',
-    submitRate: 92,
-    isPassed: true,
-    week: '1주차',
-    topic: 'Python 기초',
-    requirements: [
-      'ast.NodeVisitor 상속 및 함수 호출 노드 탐색',
-      '위험 함수(eval, exec, pickle.load, os.system) 감지',
-      '파일명 및 라인 번호 리포트 생성',
-    ],
-  },
-  {
-    id: 2,
-    title: '2주차: 자료구조',
-    className: '2반',
-    professor: '김교수',
-    description: '연결 리스트, 스택, 큐를 포함한 일반적인 자료구조 구현하기',
-    completePercent: 88,
-    deadline: '2026년 1월 22일',
-    submitCount: '7/8',
-    submitRate: 88,
-    isPassed: true
-  },
-  {
-    id: 3,
-    title: '4주차: Java 백엔드 기초',
-    className: '1반',
-    professor: '김교수',
-    description: '기본 CRUD 작업을 수행하는 Spring Boot를 사용한 간단한 REST API 구축',
-    completePercent: 62,
-    deadline: '2026년 2월 5일',
-    submitCount: '5/8',
-    submitRate: 62,
-    isPassed: true
-  },
-]);
+// Assignments from API
+const assignments = ref<Assignment[]>([]);
+
+// Load classes on mount
+onMounted(async () => {
+  try {
+    const { data } = await classApi.getClasses();
+    if (data.resultType === 'SUCCESS' && data.data) {
+      classes.value = data.data;
+      if (classes.value.length > 0) {
+        // Load all classes' assignments
+        await loadAllAssignments();
+      }
+    }
+  } catch (err) {
+    console.error('반 목록 로드 실패:', err);
+  } finally {
+    loading.value = false;
+  }
+});
+
+async function loadAllAssignments() {
+  const allAssignments: Assignment[] = [];
+
+  for (const cls of classes.value) {
+    try {
+      const { data } = await assignmentApi.getAssignments(cls.classId);
+      if (data.resultType === 'SUCCESS' && data.data) {
+        const mapped = data.data.content.map((item: AssignmentListItem) =>
+          mapToAssignment(item, cls.className),
+        );
+        allAssignments.push(...mapped);
+      }
+    } catch (err) {
+      console.error(`과제 로드 실패 (${cls.className}):`, err);
+    }
+  }
+
+  assignments.value = allAssignments;
+}
+
+function mapToAssignment(item: AssignmentListItem, className: string): Assignment {
+  const deadline = new Date(item.deadline);
+  const isPassed = deadline < new Date();
+
+  return {
+    id: item.assignmentId,
+    title: item.title,
+    className,
+    professor: item.professorName,
+    description: item.description ?? '',
+    completePercent: Math.round(item.submissionRate),
+    deadline: deadline.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }),
+    submitCount: `${item.submissionCount}/${item.totalStudents}`,
+    submitRate: Math.round(item.submissionRate),
+    isPassed,
+    topic: item.topic ?? '',
+  };
+}
 
 // Filtered assignments based on active filter
 const filteredAssignments = computed(() => {
   if (activeFilter.value === '전체') {
     return assignments.value;
   }
-  return assignments.value.filter(a => a.className === activeFilter.value);
+  return assignments.value.filter((a) => a.className === activeFilter.value);
 });
 
 const setActiveFilter = (filter: string): void => {
@@ -135,7 +161,13 @@ const handleGoBack = (): void => {
           </button>
         </div>
 
-        <div class="card-list">
+        <div v-if="loading" style="text-align: center; padding: 4rem; color: #6b7280;">
+          로딩 중...
+        </div>
+        <div v-else-if="filteredAssignments.length === 0" style="text-align: center; padding: 4rem; color: #9ca3af;">
+          과제가 없습니다.
+        </div>
+        <div v-else class="card-list">
           <AssignmentCard
             v-for="item in filteredAssignments"
             :key="item.id"

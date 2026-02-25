@@ -1,52 +1,50 @@
 <script setup lang="ts">
-import { ref, computed, type Ref } from 'vue';
+import { ref, computed } from 'vue';
+import { useAuthStore } from '@/stores/auth';
 
-// Emit event for successful login
 const emit = defineEmits<{
   'login-success': []
 }>();
 
-// Form data
-interface LoginForm {
-  studentId: string;
-  password: string;
-  rememberMe: boolean;
-}
+const authStore = useAuthStore();
 
-const loginForm: Ref<LoginForm> = ref({
-  studentId: '',
+const loginForm = ref({
+  identifier: '',
   password: '',
-  rememberMe: false
+  rememberMe: false,
 });
 
 const activeTab = ref<'student' | 'teacher'>('student');
+const errorMessage = ref('');
+const isLoading = ref(false);
 
-// Computed button text based on active tab
 const loginButtonText = computed(() => {
   return activeTab.value === 'student' ? '학생으로 로그인' : '교수로 로그인';
 });
 
-// Switch between student and teacher login
 const setActiveTab = (tab: 'student' | 'teacher'): void => {
   activeTab.value = tab;
+  errorMessage.value = '';
 };
 
-// Handle login
-const handleLogin = (): void => {
-  console.log('Login attempt:', {
-    ...loginForm.value,
-    role: activeTab.value
-  });
+const handleLogin = async (): Promise<void> => {
+  errorMessage.value = '';
+  isLoading.value = true;
 
-  // Simulate successful login and emit event
-  // In a real app, you would validate credentials here
-  emit('login-success');
+  const role = activeTab.value === 'teacher' ? 'PROFESSOR' : 'STUDENT';
+
+  try {
+    await authStore.login(loginForm.value.identifier, loginForm.value.password, role);
+    emit('login-success');
+  } catch (err: any) {
+    errorMessage.value =
+      err.response?.data?.message || '로그인에 실패했습니다. 정보를 확인해주세요.';
+  } finally {
+    isLoading.value = false;
+  }
 };
 
-// Handle forgot password
 const handleForgotPassword = (): void => {
-  console.log('Forgot password clicked');
-  // Add forgot password logic here
   alert('비밀번호 찾기 기능은 준비 중입니다.');
 };
 </script>
@@ -109,13 +107,17 @@ const handleForgotPassword = (): void => {
 
         <!-- Login Form -->
         <form @submit.prevent="handleLogin" class="login-form">
+          <div v-if="errorMessage" class="error-message">
+            {{ errorMessage }}
+          </div>
+
           <div class="form-group">
-            <label for="studentId">고유번호 (ID)</label>
+            <label for="identifier">{{ activeTab === 'teacher' ? '이메일' : 'Slack User ID' }}</label>
             <input
-              id="studentId"
-              v-model="loginForm.studentId"
+              id="identifier"
+              v-model="loginForm.identifier"
               type="text"
-              placeholder="학번 또는 교번 입력"
+              :placeholder="activeTab === 'teacher' ? '이메일 입력' : 'Slack User ID 입력'"
               required
             />
           </div>
@@ -141,8 +143,8 @@ const handleForgotPassword = (): void => {
             </button>
           </div>
 
-          <button type="submit" class="login-button">
-            {{ loginButtonText }}
+          <button type="submit" class="login-button" :disabled="isLoading">
+            {{ isLoading ? '로그인 중...' : loginButtonText }}
           </button>
 
           <p class="signup-link">

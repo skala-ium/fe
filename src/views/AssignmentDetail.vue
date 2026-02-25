@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, type Ref } from 'vue';
+import { ref, computed, onMounted, type Ref } from 'vue';
 import Sidebar from './side/Sidebar.vue';
 import SubmissionDetailModal from '@/components/SubmissionDetailModal.vue';
 import type { Assignment } from '@/types/Assignment';
+import { assignmentApi } from '@/api';
+import type { AssignmentDetailResponse } from '@/types/api';
 
 // Props
 const props = defineProps<{
@@ -17,7 +19,45 @@ const emit = defineEmits<{
   'logout': [];
 }>();
 
-// Sample submission data
+// API detail data
+const detail = ref<AssignmentDetailResponse | null>(null);
+const detailLoading = ref(true);
+
+onMounted(async () => {
+  try {
+    const { data } = await assignmentApi.getAssignmentDetail(props.assignment.id);
+    if (data.resultType === 'SUCCESS' && data.data) {
+      detail.value = data.data;
+    }
+  } catch (err) {
+    console.error('과제 상세 로드 실패:', err);
+  } finally {
+    detailLoading.value = false;
+  }
+});
+
+// Merged display data
+const displayTitle = computed(() => detail.value?.title ?? props.assignment.title);
+const displayDescription = computed(() => detail.value?.description ?? props.assignment.description);
+const displayProfessor = computed(() => detail.value?.professorName ?? props.assignment.professor);
+const displayDeadline = computed(() => {
+  if (detail.value?.deadline) {
+    return new Date(detail.value.deadline).toLocaleDateString('ko-KR', {
+      year: 'numeric', month: 'long', day: 'numeric',
+    });
+  }
+  return props.assignment.deadline;
+});
+const displayWeek = computed(() => detail.value?.week ?? props.assignment.week);
+const displayTopic = computed(() => detail.value?.topic ?? props.assignment.topic);
+const displayRequirements = computed(() => {
+  if (detail.value?.requirements?.length) {
+    return detail.value.requirements.map((r) => r.content);
+  }
+  return props.assignment.requirements ?? [];
+});
+
+// Sample submission data (mock 유지 — 별도 API 작업 필요)
 interface Submission {
   studentId: string;
   studentName: string;
@@ -132,7 +172,7 @@ const closeSubmissionModal = () => {
 const activeTab = ref<'overview' | 'submissions' | 'settings'>('overview');
 
 // Editable requirements for settings tab
-const editableRequirements = ref<string[]>([...(props.assignment.requirements || [])]);
+const editableRequirements = ref<string[]>([...displayRequirements.value]);
 
 const addRequirement = () => {
   editableRequirements.value.push('');
@@ -224,12 +264,12 @@ const getStatusText = (status: string): string => {
         <div class="info-header">
           <div class="info-title-section">
             <div class="title-row">
-              <h1>{{ assignment.title }}</h1>
+              <h1>{{ displayTitle }}</h1>
               <span class="badge class-badge">{{ assignment.className }}</span>
-              <span v-if="assignment.week" class="badge week-badge">{{ assignment.week }}</span>
-              <span v-if="assignment.topic" class="badge topic-badge">{{ assignment.topic }}</span>
+              <span v-if="displayWeek" class="badge week-badge">{{ displayWeek }}</span>
+              <span v-if="displayTopic" class="badge topic-badge">{{ displayTopic }}</span>
             </div>
-            <p class="description">{{ assignment.description }}</p>
+            <p class="description">{{ displayDescription }}</p>
           </div>
           <div class="progress-section">
             <div class="circular-progress">
@@ -266,12 +306,12 @@ const getStatusText = (status: string): string => {
           <div class="detail-item">
             <i class="bi bi-person"></i>
             <span class="label">담당 교수</span>
-            <span class="value">{{ assignment.professor }}</span>
+            <span class="value">{{ displayProfessor }}</span>
           </div>
           <div class="detail-item">
             <i class="bi bi-calendar-event"></i>
             <span class="label">마감일</span>
-            <span class="value">{{ assignment.deadline }}</span>
+            <span class="value">{{ displayDeadline }}</span>
             <span v-if="assignment.isPassed" class="badge-passed">마감 지남</span>
           </div>
           <div class="detail-item">
@@ -282,10 +322,10 @@ const getStatusText = (status: string): string => {
         </div>
 
         <!-- Requirements -->
-        <div v-if="assignment.requirements && assignment.requirements.length > 0" class="requirements-section">
+        <div v-if="displayRequirements.length > 0" class="requirements-section">
           <h3><i class="bi bi-list-check"></i> 과제 요구사항</h3>
           <ul class="requirements-list">
-            <li v-for="(req, idx) in assignment.requirements" :key="idx">
+            <li v-for="(req, idx) in displayRequirements" :key="idx">
               <span class="req-number">{{ idx + 1 }}</span>
               <span class="req-text">{{ req }}</span>
             </li>
@@ -512,15 +552,15 @@ const getStatusText = (status: string): string => {
             <h3>과제 설정</h3>
             <div class="setting-item">
               <label>과제 제목</label>
-              <input type="text" :value="assignment.title" />
+              <input type="text" :value="displayTitle" />
             </div>
             <div class="setting-item">
               <label>과제 설명</label>
-              <textarea :value="assignment.description" rows="4"></textarea>
+              <textarea :value="displayDescription" rows="4"></textarea>
             </div>
             <div class="setting-item">
               <label>마감일</label>
-              <input type="text" :value="assignment.deadline" />
+              <input type="text" :value="displayDeadline" />
             </div>
             <div class="setting-item">
               <label>클래스</label>

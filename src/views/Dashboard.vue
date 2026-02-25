@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import Sidebar from './side/Sidebar.vue';
+import { dashboardApi } from '@/api';
+import type { DashboardResponse } from '@/types/api';
 
 const props = defineProps<{
   activeMenu: string;
@@ -11,94 +13,52 @@ const emit = defineEmits<{
   'logout': [];
 }>();
 
-// Class filter
-const filterTabs = ['전체', '1반', '2반', '3반', '클라우드반'];
-const activeFilter = ref('전체');
+// API data
+const dashboard = ref<DashboardResponse | null>(null);
+const loading = ref(true);
 
-// Active assignments data
-interface ActiveAssignment {
-  id: number;
-  title: string;
-  className: string;
-  deadline: string;
-  submitRate: number;
-  submitCount: string;
-  newUnreviewed: number;
-  lateSubmissions: number;
-  deadlineImminent: boolean;
-}
+onMounted(async () => {
+  try {
+    const { data } = await dashboardApi.getDashboard();
+    if (data.resultType === 'SUCCESS' && data.data) {
+      dashboard.value = data.data;
+    }
+  } catch (err) {
+    console.error('대시보드 로드 실패:', err);
+  } finally {
+    loading.value = false;
+  }
 
-const allAssignments = ref<ActiveAssignment[]>([
-  {
-    id: 1,
-    title: '1주차: Python 기초',
-    className: '1반',
-    deadline: '2026년 1월 15일',
-    submitRate: 92,
-    submitCount: '7/8',
-    newUnreviewed: 2,
-    lateSubmissions: 1,
-    deadlineImminent: false,
-  },
-  {
-    id: 2,
-    title: '2주차: 자료구조',
-    className: '2반',
-    deadline: '2026년 1월 22일',
-    submitRate: 88,
-    submitCount: '7/8',
-    newUnreviewed: 3,
-    lateSubmissions: 0,
-    deadlineImminent: false,
-  },
-  {
-    id: 3,
-    title: '4주차: Java 백엔드 기초',
-    className: '1반',
-    deadline: '2026년 2월 5일',
-    submitRate: 62,
-    submitCount: '5/8',
-    newUnreviewed: 5,
-    lateSubmissions: 2,
-    deadlineImminent: true,
-  },
-]);
-
-const filteredAssignments = computed(() => {
-  if (activeFilter.value === '전체') return allAssignments.value;
-  return allAssignments.value.filter(a => a.className === activeFilter.value);
+  nextTick(() => drawChart());
+  window.addEventListener('resize', drawChart);
 });
 
-// Summary stats (reactive to filter)
-const totalAssignments = computed(() => filteredAssignments.value.length);
-const pendingReviews = computed(() =>
-  filteredAssignments.value.reduce((sum, a) => sum + a.newUnreviewed, 0)
-);
-const overallSubmitRate = computed(() => {
-  const list = filteredAssignments.value;
-  if (list.length === 0) return 0;
-  return Math.round(list.reduce((sum, a) => sum + a.submitRate, 0) / list.length);
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', drawChart);
 });
+
+// Summary
+const totalAssignments = computed(() => dashboard.value?.summary.totalAssignments ?? 0);
+const pendingReviews = computed(() => dashboard.value?.summary.pendingReviewCount ?? 0);
+const overallSubmitRate = computed(() => dashboard.value?.summary.overallSubmissionRate ?? 0);
+
+// Chart data from API
+const chartData = computed(() => {
+  if (!dashboard.value) return [];
+  return dashboard.value.assignmentSubmissionRates.map((item) => ({
+    label: item.assignmentName,
+    rate: item.submissionRate,
+  }));
+});
+
+const maxRate = 100;
 
 const handleViewDetail = () => {
   emit('navigate', 'assignments');
 };
 
-// Chart data (reactive to filter)
-const allChartData = [
-  { label: '1주차', rate: 92, className: '1반' },
-  { label: '2주차', rate: 88, className: '2반' },
-  { label: '3주차', rate: 75, className: '3반' },
-  { label: '4주차', rate: 62, className: '1반' },
-  { label: '5주차', rate: 45, className: '클라우드반' },
-];
-
-const chartData = computed(() => {
-  if (activeFilter.value === '전체') return allChartData;
-  return allChartData.filter(d => d.className === activeFilter.value);
-});
-
-const maxRate = 100;
+// Recent submissions from API
+const recentSubmissions = computed(() => dashboard.value?.recentSubmissions ?? []);
 
 // Canvas chart rendering
 const chartCanvas = ref<HTMLCanvasElement | null>(null);
@@ -132,7 +92,7 @@ const drawChart = () => {
 
   ctx.clearRect(0, 0, width, height);
 
-  // Draw grid lines
+  // Grid lines
   ctx.strokeStyle = '#e5e7eb';
   ctx.lineWidth = 1;
   ctx.setLineDash([]);
@@ -149,12 +109,15 @@ const drawChart = () => {
     ctx.fillText(`${100 - i * 25}`, padding.left - 8, y + 4);
   }
 
-  // Draw bars
-  const barCount = chartData.value.length;
+  // Bars
+  const data = chartData.value;
+  if (data.length === 0) return;
+
+  const barCount = data.length;
   const barGap = chartWidth / barCount;
   const barWidth = barGap * 0.5;
 
-  chartData.value.forEach((item, index) => {
+  data.forEach((item, index) => {
     const x = padding.left + barGap * index + (barGap - barWidth) / 2;
     const barHeight = (item.rate / maxRate) * chartHeight;
     const y = padding.top + chartHeight - barHeight;
@@ -182,26 +145,17 @@ const drawChart = () => {
     ctx.fillStyle = gradient;
     ctx.fill();
 
+    // Label (truncate long names)
     ctx.fillStyle = '#9ca3af';
     ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(item.label, x + barWidth / 2, height - padding.bottom + 20);
+    const label = item.label.length > 8 ? item.label.slice(0, 7) + '…' : item.label;
+    ctx.fillText(label, x + barWidth / 2, height - padding.bottom + 20);
   });
 };
 
 watch(chartData, () => {
   nextTick(() => drawChart());
-});
-
-onMounted(() => {
-  nextTick(() => {
-    drawChart();
-  });
-  window.addEventListener('resize', drawChart);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', drawChart);
 });
 </script>
 
@@ -217,128 +171,96 @@ onBeforeUnmount(() => {
       </header>
 
       <main class="content-area">
-        <!-- Dashboard Header -->
-        <div class="dashboard-header">
-          <h1>대시보드 개요</h1>
-          <p>과제 및 학생 제출 현황 모니터링</p>
+        <div v-if="loading" style="text-align: center; padding: 4rem; color: #6b7280;">
+          로딩 중...
         </div>
-
-        <!-- Class Filter -->
-        <div class="dashboard-filters">
-          <button
-            v-for="tab in filterTabs"
-            :key="tab"
-            class="filter-btn"
-            :class="{ active: activeFilter === tab }"
-            @click="activeFilter = tab"
-          >
-            {{ tab }}
-          </button>
-        </div>
-
-        <!-- Summary Cards -->
-        <div class="summary-cards">
-          <div class="summary-card">
-            <div class="summary-icon icon-assignments">
-              <i class="bi bi-file-earmark-text"></i>
-            </div>
-            <div class="summary-value">{{ totalAssignments }}</div>
-            <div class="summary-label">전체 과제</div>
+        <template v-else>
+          <!-- Dashboard Header -->
+          <div class="dashboard-header">
+            <h1>대시보드 개요</h1>
+            <p>과제 및 학생 제출 현황 모니터링</p>
           </div>
 
-          <div class="summary-card">
-            <div class="summary-icon icon-pending">
-              <i class="bi bi-clock-history"></i>
+          <!-- Summary Cards -->
+          <div class="summary-cards">
+            <div class="summary-card">
+              <div class="summary-icon icon-assignments">
+                <i class="bi bi-file-earmark-text"></i>
+              </div>
+              <div class="summary-value">{{ totalAssignments }}</div>
+              <div class="summary-label">전체 과제</div>
             </div>
-            <div class="summary-value">{{ pendingReviews }}</div>
-            <div class="summary-label">검토 대기중</div>
+
+            <div class="summary-card">
+              <div class="summary-icon icon-pending">
+                <i class="bi bi-clock-history"></i>
+              </div>
+              <div class="summary-value">{{ pendingReviews }}</div>
+              <div class="summary-label">검토 대기중</div>
+            </div>
+
+            <div class="summary-card">
+              <div class="summary-icon icon-rate">
+                <i class="bi bi-graph-up-arrow"></i>
+              </div>
+              <div class="summary-value">{{ overallSubmitRate }}%</div>
+              <div class="summary-label">전체 제출률</div>
+            </div>
           </div>
 
-          <div class="summary-card">
-            <div class="summary-icon icon-rate">
-              <i class="bi bi-graph-up-arrow"></i>
-            </div>
-            <div class="summary-value">{{ overallSubmitRate }}%</div>
-            <div class="summary-label">전체 제출률</div>
-          </div>
-        </div>
+          <!-- Bottom Section: Recent Submissions + Chart -->
+          <div class="dashboard-bottom">
+            <!-- Recent Submissions -->
+            <div class="dashboard-card assignments-overview-card">
+              <div class="card-header">
+                <h3>최근 제출</h3>
+                <p>최근 제출된 과제</p>
+              </div>
 
-        <!-- Bottom Section: Active Assignments + Chart -->
-        <div class="dashboard-bottom">
-          <!-- Active Assignments Overview -->
-          <div class="dashboard-card assignments-overview-card">
-            <div class="card-header">
-              <h3>활성 과제 현황</h3>
-              <p>진행 중인 과제 제출률 및 상태</p>
-            </div>
-
-            <div class="assignment-rows">
-              <div
-                v-for="a in filteredAssignments"
-                :key="a.id"
-                class="assignment-row"
-              >
-                <!-- Top: metadata + badges -->
-                <div class="assignment-row-top">
-                  <div class="assignment-meta">
-                    <span class="assignment-title">{{ a.title }}</span>
-                    <span class="class-badge">{{ a.className }}</span>
+              <div class="assignment-rows">
+                <div v-if="recentSubmissions.length === 0" style="padding: 2rem; text-align: center; color: #9ca3af;">
+                  최근 제출이 없습니다.
+                </div>
+                <div
+                  v-for="(sub, idx) in recentSubmissions"
+                  :key="idx"
+                  class="assignment-row"
+                >
+                  <div class="assignment-row-top">
+                    <div class="assignment-meta">
+                      <span class="assignment-title">{{ sub.assignmentTitle }}</span>
+                      <span class="class-badge">{{ sub.studentName }}</span>
+                    </div>
                   </div>
-                  <div class="assignment-badges">
-                    <span v-if="a.lateSubmissions > 0" class="badge badge-late">
-                      <i class="bi bi-exclamation-triangle-fill"></i> 지각 {{ a.lateSubmissions }}건
+                  <div class="assignment-row-info">
+                    <span class="info-item">
+                      <i class="bi bi-calendar-event"></i> {{ new Date(sub.submittedAt).toLocaleString('ko-KR') }}
                     </span>
-                    <span v-if="a.deadlineImminent" class="badge badge-urgent">
-                      <i class="bi bi-alarm-fill"></i> 마감 임박
+                    <span v-if="sub.fileName" class="info-item">
+                      <i class="bi bi-file-earmark"></i> {{ sub.fileName }}
                     </span>
                   </div>
-                </div>
-
-                <!-- Middle: deadline + unreviewed -->
-                <div class="assignment-row-info">
-                  <span class="info-item">
-                    <i class="bi bi-calendar-event"></i> {{ a.deadline }}
-                  </span>
-                  <span v-if="a.newUnreviewed > 0" class="info-item unreviewed">
-                    <i class="bi bi-envelope-fill"></i> 미검토 {{ a.newUnreviewed }}건
-                  </span>
-                </div>
-
-                <!-- Progress bar -->
-                <div class="progress-section">
-                  <div class="progress-bar-track">
-                    <div
-                      class="progress-bar-fill"
-                      :style="{ width: a.submitRate + '%' }"
-                    ></div>
+                  <div class="assignment-row-actions">
+                    <button class="btn-view-detail" @click="handleViewDetail">
+                      상세 보기 <i class="bi bi-arrow-right"></i>
+                    </button>
                   </div>
-                  <span class="progress-label">{{ a.submitRate }}% ({{ a.submitCount }})</span>
-                </div>
-
-                <!-- Actions -->
-                <div class="assignment-row-actions">
-                  <button class="btn-zip-download">
-                    <i class="bi bi-file-earmark-zip"></i> 전체 ZIP 다운로드
-                  </button>
-                  <button class="btn-view-detail" @click="handleViewDetail">
-                    상세 현황 보기 <i class="bi bi-arrow-right"></i>
-                  </button>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Submission Rate Chart -->
-          <div class="dashboard-card chart-card">
-            <div class="card-header">
-              <h3>과제별 제출률</h3>
-              <p>최근 5개 과제</p>
-            </div>
-            <div class="chart-container">
-              <canvas ref="chartCanvas"></canvas>
+            <!-- Submission Rate Chart -->
+            <div class="dashboard-card chart-card">
+              <div class="card-header">
+                <h3>과제별 제출률</h3>
+                <p>등록된 과제</p>
+              </div>
+              <div class="chart-container">
+                <canvas ref="chartCanvas"></canvas>
+              </div>
             </div>
           </div>
-        </div>
+        </template>
       </main>
     </div>
   </div>

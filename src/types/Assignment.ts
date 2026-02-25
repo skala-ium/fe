@@ -1,7 +1,7 @@
 // src/types/Assignment.ts
 
 export interface Assignment {
-  id: number;
+  id: string;
   title: string;
   className: string;
   professor: string;

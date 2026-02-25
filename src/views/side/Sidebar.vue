@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useAuthStore } from '@/stores/auth';
+
 interface MenuItem {
   label: string;
   icon: string;
@@ -13,6 +16,12 @@ const emit = defineEmits<{
   'navigate': [menuId: string];
   'logout': [];
 }>();
+
+const authStore = useAuthStore();
+
+const userName = computed(() => authStore.user?.name ?? '');
+const userEmail = computed(() => authStore.user?.principal ?? '');
+const userInitial = computed(() => userName.value.charAt(0) || '?');
 
 const menuItems: MenuItem[] = [
   { label: '대시보드', icon: 'bi-grid', id: 'dashboard' },
@@ -51,10 +60,10 @@ const handleLogout = () => {
 
     <div class="sidebar-footer">
       <div class="profile">
-        <div class="avatar">김</div>
+        <div class="avatar">{{ userInitial }}</div>
         <div class="info">
-          <p class="name">김교수</p>
-          <p class="email">kim@university.edu</p>
+          <p class="name">{{ userName }}</p>
+          <p class="email">{{ userEmail }}</p>
         </div>
       </div>
       <div class="logout-btn" @click="handleLogout">

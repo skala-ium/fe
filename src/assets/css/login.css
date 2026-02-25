@@ -1,3 +1,14 @@
+/* Error message */
+.error-message {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
 /* Login Page Styles */
 .login-container {
   display: flex;

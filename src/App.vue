@@ -1,19 +1,25 @@
 <script setup lang="ts">
-import { ref, provide } from 'vue';
+import { ref, provide, onMounted } from 'vue';
+import { useAuthStore } from '@/stores/auth';
 import Login from './views/Login.vue';
 import AssignmentListView from './views/AssignmentListView.vue';
 import Dashboard from './views/Dashboard.vue';
 
-const showLogin = ref(true);
+const authStore = useAuthStore();
 const currentPage = ref<string>('dashboard');
+const initialLoading = ref(true);
+
+onMounted(async () => {
+  await authStore.fetchUser();
+  initialLoading.value = false;
+});
 
 const handleLogin = () => {
-  showLogin.value = false;
   currentPage.value = 'dashboard';
 };
 
-const handleLogout = () => {
-  showLogin.value = true;
+const handleLogout = async () => {
+  await authStore.logout();
   currentPage.value = 'dashboard';
 };
 
@@ -27,7 +33,10 @@ provide('currentPage', currentPage);
 </script>
 
 <template>
-  <Login v-if="showLogin" @login-success="handleLogin" />
+  <div v-if="initialLoading" class="loading-screen">
+    <p>로딩 중...</p>
+  </div>
+  <Login v-else-if="!authStore.isLoggedIn" @login-success="handleLogin" />
   <template v-else>
     <Dashboard
       v-if="currentPage === 'dashboard'"
@@ -41,7 +50,6 @@ provide('currentPage', currentPage);
       @navigate="handleNavigate"
       @logout="handleLogout"
     />
-    <!-- Placeholder for other pages - show dashboard by default -->
     <Dashboard
       v-else
       :active-menu="currentPage"
@@ -52,5 +60,12 @@ provide('currentPage', currentPage);
 </template>
 
 <style scoped>
-/* App container styles */
+.loading-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.2rem;
+  color: #6b7280;
+}
 </style>
