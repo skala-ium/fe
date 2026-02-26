@@ -3,6 +3,7 @@ import { ref, provide, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import Login from './views/Login.vue';
 import AssignmentListView from './views/AssignmentListView.vue';
+import AssignmentCreateView from './views/AssignmentCreateView.vue';
 import Dashboard from './views/Dashboard.vue';
 
 const authStore = useAuthStore();
@@ -46,6 +47,12 @@ provide('currentPage', currentPage);
     />
     <AssignmentListView
       v-else-if="currentPage === 'assignments'"
+      :active-menu="currentPage"
+      @navigate="handleNavigate"
+      @logout="handleLogout"
+    />
+    <AssignmentCreateView
+      v-else-if="currentPage === 'create-assignment'"
       :active-menu="currentPage"
       @navigate="handleNavigate"
       @logout="handleLogout"

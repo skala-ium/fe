@@ -26,6 +26,7 @@ const userInitial = computed(() => userName.value.charAt(0) || '?');
 const menuItems: MenuItem[] = [
   { label: '대시보드', icon: 'bi-grid', id: 'dashboard' },
   { label: '과제 목록', icon: 'bi-file-earmark-text', id: 'assignments' },
+  { label: '과제 생성', icon: 'bi-plus-circle', id: 'create-assignment' },
   { label: '학생 관리', icon: 'bi-people', id: 'students' },
   { label: '설정', icon: 'bi-gear', id: 'settings' },
 ];
