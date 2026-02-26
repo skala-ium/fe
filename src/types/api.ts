@@ -98,3 +98,14 @@ export interface ClassListItem {
   generation: number
   studentCount: number
 }
+
+// 과제 생성 요청
+export interface AssignmentCreateRequest {
+  classId: string
+  title: string
+  description: string
+  week: string
+  topic: string
+  deadline: string
+  requirements: string[]
+}
