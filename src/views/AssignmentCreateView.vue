@@ -51,7 +51,7 @@ onMounted(async () => {
     if (data.data) {
       classes.value = data.data;
       if (classes.value.length > 0) {
-        selectedClassId.value = classes.value[0].classId;
+        selectedClassId.value = classes.value[0]?.classId ?? '';
       }
     }
   } catch (err) {
