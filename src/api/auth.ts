@@ -1,4 +1,5 @@
 import client from './client'
+import fastApiClient from './fastApiClient'
 import type {
   ApiResponse,
   LoginRequest,
@@ -28,12 +29,12 @@ export const authApi = {
 
   // 슬랙 이메일로 DM 인증 코드 발송 → slack_user_id 반환
   sendVerificationCode(email: string) {
-    return client.post<SendCodeResponse>('/auth/slack/send-code', { email })
+    return fastApiClient.post<SendCodeResponse>('/auth/slack/send-code', { email })
   },
 
   // slack_user_id + 코드 검증 → temp_token 반환
   verifyCode(slackUserId: string, code: string) {
-    return client.post<VerifyCodeResponse>('/auth/slack/verify-code', {
+    return fastApiClient.post<VerifyCodeResponse>('/auth/slack/verify-code', {
       slack_user_id: slackUserId,
       code,
     })
@@ -41,6 +42,6 @@ export const authApi = {
 
   // temp_token + 회원 정보로 최종 가입 → student_id 반환
   signup(data: SignUpRequest) {
-    return client.post<SignUpResponse>('/auth/signup', data)
+    return fastApiClient.post<SignUpResponse>('/auth/signup', data)
   },
 }
