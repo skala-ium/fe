@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import Sidebar from './side/Sidebar.vue';
 import AssignmentCard from '@/components/AssignmentCard.vue';
 import AssignmentDetail from './AssignmentDetail.vue';
+import PaginationBar from '@/components/PaginationBar.vue';
 import type { Assignment } from '@/types/Assignment';
 import { classApi, assignmentApi } from '@/api';
 import type { ClassListItem, AssignmentListItem } from '@/types/api';
@@ -34,6 +35,11 @@ const activeFilter = ref<string>('전체');
 
 // Assignments from API
 const assignments = ref<Assignment[]>([]);
+
+// Pagination
+const currentPage = ref(0);
+const totalPages = ref(0);
+const PAGE_SIZE = 10;
 
 // Load classes on mount
 onMounted(async () => {
@@ -71,6 +77,22 @@ async function loadAllAssignments() {
   }
 
   assignments.value = allAssignments;
+  totalPages.value = Math.ceil(allAssignments.length / PAGE_SIZE);
+}
+
+async function loadClassAssignments(classId: string, page: number) {
+  try {
+    const { data } = await assignmentApi.getAssignments(classId, page, PAGE_SIZE);
+    if (data.resultType === 'SUCCESS' && data.data) {
+      const cls = classes.value.find((c) => c.classId === classId);
+      assignments.value = data.data.content.map((item: AssignmentListItem) =>
+        mapToAssignment(item, cls?.className ?? ''),
+      );
+      totalPages.value = data.data.totalPages;
+    }
+  } catch (err) {
+    console.error(`과제 로드 실패 (classId: ${classId}):`, err);
+  }
 }
 
 function mapToAssignment(item: AssignmentListItem, className: string): Assignment {
@@ -96,16 +118,59 @@ function mapToAssignment(item: AssignmentListItem, className: string): Assignmen
   };
 }
 
-// Filtered assignments based on active filter
+// Filtered assignments (전체: 클라이언트 필터, 특정 클래스: 서버에서 받은 전체)
 const filteredAssignments = computed(() => {
   if (activeFilter.value === '전체') {
     return assignments.value;
   }
-  return assignments.value.filter((a) => a.className === activeFilter.value);
+  return assignments.value;
 });
 
-const setActiveFilter = (filter: string): void => {
+// 전체 필터일 때 클라이언트 페이징
+const pagedAssignments = computed(() => {
+  if (activeFilter.value === '전체') {
+    return filteredAssignments.value.slice(
+      currentPage.value * PAGE_SIZE,
+      (currentPage.value + 1) * PAGE_SIZE,
+    );
+  }
+  return filteredAssignments.value; // 서버에서 이미 1페이지 분량
+});
+
+// 전체 필터 전환 시 totalPages 갱신
+watch(
+  [() => assignments.value.length, activeFilter],
+  () => {
+    if (activeFilter.value === '전체') {
+      totalPages.value = Math.ceil(assignments.value.length / PAGE_SIZE);
+    }
+  },
+);
+
+const setActiveFilter = async (filter: string): Promise<void> => {
   activeFilter.value = filter;
+  currentPage.value = 0;
+
+  if (filter !== '전체') {
+    const cls = classes.value.find((c) => c.className === filter);
+    if (cls) {
+      loading.value = true;
+      await loadClassAssignments(cls.classId, 0);
+      loading.value = false;
+    }
+  }
+};
+
+const onPageChange = async (page: number): Promise<void> => {
+  currentPage.value = page;
+  if (activeFilter.value !== '전체') {
+    const cls = classes.value.find((c) => c.className === activeFilter.value);
+    if (cls) {
+      loading.value = true;
+      await loadClassAssignments(cls.classId, page);
+      loading.value = false;
+    }
+  }
 };
 
 // Handle assignment click
@@ -164,16 +229,23 @@ const handleGoBack = (): void => {
         <div v-if="loading" style="text-align: center; padding: 4rem; color: #6b7280;">
           로딩 중...
         </div>
-        <div v-else-if="filteredAssignments.length === 0" style="text-align: center; padding: 4rem; color: #9ca3af;">
+        <div v-else-if="pagedAssignments.length === 0" style="text-align: center; padding: 4rem; color: #9ca3af;">
           과제가 없습니다.
         </div>
-        <div v-else class="card-list">
-          <AssignmentCard
-            v-for="item in filteredAssignments"
-            :key="item.id"
-            :data="item"
-            @click="handleAssignmentClick" />
-        </div>
+        <template v-else>
+          <div class="card-list">
+            <AssignmentCard
+              v-for="item in pagedAssignments"
+              :key="item.id"
+              :data="item"
+              @click="handleAssignmentClick" />
+          </div>
+          <PaginationBar
+            :current-page="currentPage"
+            :total-pages="totalPages"
+            @change="onPageChange"
+          />
+        </template>
       </main>
     </div>
   </div>

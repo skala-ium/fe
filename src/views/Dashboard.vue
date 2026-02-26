@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import Sidebar from './side/Sidebar.vue';
+import PaginationBar from '@/components/PaginationBar.vue';
 import { dashboardApi } from '@/api';
 import type { DashboardResponse } from '@/types/api';
 
@@ -59,6 +60,19 @@ const handleViewDetail = () => {
 
 // Recent submissions from API
 const recentSubmissions = computed(() => dashboard.value?.recentSubmissions ?? []);
+
+// 최근 제출 클라이언트 페이징
+const SUBMISSION_PAGE_SIZE = 5;
+const submissionPage = ref(0);
+const totalSubmissionPages = computed(() =>
+  Math.ceil(recentSubmissions.value.length / SUBMISSION_PAGE_SIZE),
+);
+const pagedSubmissions = computed(() =>
+  recentSubmissions.value.slice(
+    submissionPage.value * SUBMISSION_PAGE_SIZE,
+    (submissionPage.value + 1) * SUBMISSION_PAGE_SIZE,
+  ),
+);
 
 // Canvas chart rendering
 const chartCanvas = ref<HTMLCanvasElement | null>(null);
@@ -222,7 +236,7 @@ watch(chartData, () => {
                   최근 제출이 없습니다.
                 </div>
                 <div
-                  v-for="(sub, idx) in recentSubmissions"
+                  v-for="(sub, idx) in pagedSubmissions"
                   :key="idx"
                   class="assignment-row"
                 >
@@ -247,6 +261,11 @@ watch(chartData, () => {
                   </div>
                 </div>
               </div>
+              <PaginationBar
+                :current-page="submissionPage"
+                :total-pages="totalSubmissionPages"
+                @change="submissionPage = $event"
+              />
             </div>
 
             <!-- Submission Rate Chart -->

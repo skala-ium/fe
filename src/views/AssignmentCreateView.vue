@@ -18,7 +18,6 @@ const classes = ref<ClassListItem[]>([]);
 const selectedClassId = ref('');
 const title = ref('');
 const description = ref('');
-const week = ref('');
 const topic = ref('');
 const deadlineDate = ref('');
 const deadlineHour = ref('11');
@@ -39,7 +38,7 @@ const deadlineISO = computed(() => {
   }
   const hh = String(hour).padStart(2, '0');
   const mm = deadlineMinute.value;
-  return new Date(`${deadlineDate.value}T${hh}:${mm}:00`).toISOString();
+  return `${deadlineDate.value}T${hh}:${mm}:00+09:00`;
 });
 
 const submitting = ref(false);
@@ -83,7 +82,6 @@ const handleSubmit = async () => {
       classId: selectedClassId.value,
       title: title.value.trim(),
       description: description.value.trim(),
-      week: week.value.trim(),
       topic: topic.value.trim(),
       deadline: deadlineISO.value,
       requirements: requirements.value.filter((r) => r.trim() !== ''),
@@ -173,26 +171,15 @@ const handleCancel = () => {
               ></textarea>
             </div>
 
-            <!-- 주차 / 주제 -->
-            <div class="form-row">
-              <div class="form-group">
-                <label>주차</label>
-                <input
-                  v-model="week"
-                  type="text"
-                  class="form-control"
-                  placeholder="예: 3주차"
-                />
-              </div>
-              <div class="form-group">
-                <label>주제</label>
-                <input
-                  v-model="topic"
-                  type="text"
-                  class="form-control"
-                  placeholder="예: React Hooks"
-                />
-              </div>
+            <!-- 주제 -->
+            <div class="form-group">
+              <label>주제</label>
+              <input
+                v-model="topic"
+                type="text"
+                class="form-control"
+                placeholder="예: React Hooks"
+              />
             </div>
 
             <!-- 마감일시 -->

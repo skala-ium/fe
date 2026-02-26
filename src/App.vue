@@ -2,12 +2,14 @@
 import { ref, provide, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import Login from './views/Login.vue';
+import SignUp from './views/SignUp.vue';
 import AssignmentListView from './views/AssignmentListView.vue';
 import AssignmentCreateView from './views/AssignmentCreateView.vue';
 import Dashboard from './views/Dashboard.vue';
 
 const authStore = useAuthStore();
 const currentPage = ref<string>('dashboard');
+const currentAuthView = ref<'login' | 'signup'>('login');
 const initialLoading = ref(true);
 
 onMounted(async () => {
@@ -17,6 +19,7 @@ onMounted(async () => {
 
 const handleLogin = () => {
   currentPage.value = 'dashboard';
+  currentAuthView.value = 'login';
 };
 
 const handleLogout = async () => {
@@ -37,7 +40,16 @@ provide('currentPage', currentPage);
   <div v-if="initialLoading" class="loading-screen">
     <p>로딩 중...</p>
   </div>
-  <Login v-else-if="!authStore.isLoggedIn" @login-success="handleLogin" />
+  <Login
+    v-else-if="!authStore.isLoggedIn && currentAuthView === 'login'"
+    @login-success="handleLogin"
+    @go-signup="currentAuthView = 'signup'"
+  />
+  <SignUp
+    v-else-if="!authStore.isLoggedIn && currentAuthView === 'signup'"
+    @signup-success="currentAuthView = 'login'"
+    @go-login="currentAuthView = 'login'"
+  />
   <template v-else>
     <Dashboard
       v-if="currentPage === 'dashboard'"

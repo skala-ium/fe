@@ -3,7 +3,8 @@ import { ref, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 
 const emit = defineEmits<{
-  'login-success': []
+  'login-success': [];
+  'go-signup': [];
 }>();
 
 const authStore = useAuthStore();
@@ -148,7 +149,7 @@ const handleForgotPassword = (): void => {
           </button>
 
           <p class="signup-link">
-            처음 방문이신가요? <a href="#" @click.prevent>회원가입(Myuniv)</a> 하기
+            처음 방문이신가요? <a href="#" @click.prevent="emit('go-signup')">회원가입</a> 하기
           </p>
         </form>
       </div>

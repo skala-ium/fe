@@ -99,12 +99,33 @@ export interface ClassListItem {
   studentCount: number
 }
 
+// 회원가입 관련 (슬랙 인증 기반)
+export interface SendCodeResponse {
+  message: string
+  slack_user_id: string
+}
+
+export interface VerifyCodeResponse {
+  message: string
+  temp_token: string
+}
+
+export interface SignUpRequest {
+  temp_token: string
+  name: string
+  password: string
+  major?: string
+}
+
+export interface SignUpResponse {
+  student_id: string
+}
+
 // 과제 생성 요청
 export interface AssignmentCreateRequest {
   classId: string
   title: string
   description: string
-  week: string
   topic: string
   deadline: string
   requirements: string[]
