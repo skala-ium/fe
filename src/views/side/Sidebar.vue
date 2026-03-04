@@ -23,13 +23,28 @@ const userName = computed(() => authStore.user?.name ?? '');
 const userEmail = computed(() => authStore.user?.principal ?? '');
 const userInitial = computed(() => userName.value.charAt(0) || '?');
 
-const menuItems: MenuItem[] = [
-  { label: '대시보드', icon: 'bi-grid', id: 'dashboard' },
-  { label: '과제 목록', icon: 'bi-file-earmark-text', id: 'assignments' },
-  { label: '과제 생성', icon: 'bi-plus-circle', id: 'create-assignment' },
-  { label: '학생 관리', icon: 'bi-people', id: 'students' },
-  { label: '설정', icon: 'bi-gear', id: 'settings' },
-];
+const menuItems = computed<MenuItem[]>(() => {
+  if (authStore.user?.role === 'STUDENT') {
+    return [
+      { label: '대시보드', icon: 'bi-grid', id: 'dashboard' },
+      { label: '내 과제', icon: 'bi-file-earmark-text', id: 'assignments' },
+      { label: '제출 현황', icon: 'bi-check-circle', id: 'submissions' },
+    ]
+  } else {
+    // PROFESSOR
+    return [
+      { label: '대시보드', icon: 'bi-grid', id: 'dashboard' },
+      { label: '과제 목록', icon: 'bi-file-earmark-text', id: 'assignments' },
+      { label: '과제 생성', icon: 'bi-plus-circle', id: 'create-assignment' },
+      { label: '학생 관리', icon: 'bi-people', id: 'students' },
+      { label: '설정', icon: 'bi-gear', id: 'settings' },
+    ]
+  }
+})
+
+const sidebarTitle = computed(() =>
+  authStore.user?.role === 'STUDENT' ? '학생 포털' : '교수 포털',
+)
 
 const handleMenuClick = (menuId: string) => {
   emit('navigate', menuId);
@@ -43,7 +58,7 @@ const handleLogout = () => {
 <template>
   <aside class="sidebar">
     <div class="logo-section">
-      <h2>교수 포털</h2>
+      <h2>{{ sidebarTitle }}</h2>
       <p>과제 관리 시스템</p>
     </div>
 

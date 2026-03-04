@@ -130,3 +130,51 @@ export interface AssignmentCreateRequest {
   deadline: string
   requirements: string[]
 }
+
+// 학생용 과제 목록
+export interface StudentAssignmentResponse {
+  assignmentId: string
+  title: string
+  deadline: string
+  submitted: boolean
+  status: string
+}
+
+// 과제 제출 요청
+export interface CreateSubmissionRequest {
+  contentText: string
+  fileUrl: string
+  fileName: string
+}
+
+// 내 제출 목록
+export interface MySubmissionResponse {
+  submissionId: number
+  assignmentTitle: string
+  submittedAt: string
+  status: string
+}
+
+// 제출 상세
+export interface SubmissionResponse {
+  submissionId: number
+  studentName: string
+  contentText: string
+  fileUrl: string
+  submittedAt: string
+  status: string
+}
+
+// 클래스 상세
+export interface ClassDetailResponse {
+  classId: string
+  className: string
+  generation: number
+  students: StudentInfo[]
+}
+
+export interface StudentInfo {
+  studentId: string
+  name: string
+  major: string
+}
